@@ -1,0 +1,45 @@
+# ============================================
+#  MediaMTX 配置 - 海洋智能牧场视频流
+#  端口: 8888 (HLS/FLV/WebRTC)
+#  使用方法:
+#    1. 将下面的 RTSP 地址改为你的摄像头实际地址
+#    2. 双击 mediamtx.exe 启动服务
+#    3. 前端访问 http://localhost:8888/cam1/index.m3u8
+# ============================================
+
+# HTTP API & HLS 服务端口 (与前端 VITE_MEDIA_SERVER 对应)
+httpAddress: ":8888"
+
+# RTSP 服务端口 (用于接收摄像头推流)
+rtspAddress: ":8554"
+
+# 路径配置 - 每个摄像头一个路径
+paths:
+
+  # ========== 摄像头1: 水下高清摄像头 (WST-3600) ==========
+  cam1:
+    source: rtsp://admin:password@192.168.1.100:554/live/main
+
+  # ========== 摄像头2: 牧场1号 ==========
+  cam2:
+    source: rtsp://admin:password@192.168.1.101:554/live/main
+
+  # ========== 摄像头3: 牧场2号 ==========
+  cam3:
+    source: rtsp://admin:password@192.168.1.102:554/live/main
+
+  # ========== 摄像头4: 气象站全景 ==========
+  cam4:
+    source: rtsp://admin:password@192.168.1.103:554/live/main
+
+  # ========== 摄像头5: 深水区探测器 ==========
+  cam5:
+    source: rtsp://admin:password@192.168.1.104:554/live/main
+
+# 全局设置
+hlsVariant: hlsLowLatency
+hlsEncryption: false
+hlsSegmentDuration: 1s
+hlsPartDuration: 0.2s
+hlsSegmentCount: 6
+hlsAllowOrigin: "*"

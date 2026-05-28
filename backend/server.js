@@ -3,12 +3,13 @@ const Database = require('better-sqlite3');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const CryptoJS = require('crypto-js');
+const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = 8080;
+const PORT = 666;
 const JWT_SECRET = 'ocean-ranch-secret-key-2026';
 const DB_PATH = path.join(__dirname, 'data', 'ocean_ranch.db');
 const SQL_INIT_PATH = path.join(__dirname, 'sql', 'init.sql');
@@ -524,14 +525,140 @@ app.post('/api/iot/cmd', (req, res) => {
 });
 
 app.post('/api/iot/history', (req, res) => {
-    const { did, limit = 50 } = req.body;
-    let sql = 'SELECT * FROM sensor_data WHERE 1=1';
-    const params = [];
-    if (did) { sql += ' AND did = ?'; params.push(did); }
-    sql += ' ORDER BY timestamp DESC LIMIT ?';
-    params.push(limit);
-    const rows = db.prepare(sql).all(...params);
-    res.json({ code: 200, data: rows });
+  const { did, limit = 50 } = req.body;
+  let sql = 'SELECT * FROM sensor_data WHERE 1=1';
+  const params = [];
+  if (did) { sql += ' AND did = ?'; params.push(did); }
+  sql += ' ORDER BY timestamp DESC LIMIT ?';
+  params.push(limit);
+  const rows = db.prepare(sql).all(...params);
+  res.json({ code: 200, data: rows });
+});
+
+const OLD_PLATFORM_BASE = 'http://app.qmxwlw.cn/a';
+let oldPlatformToken = null;
+let oldTokenExpiry = null;
+
+async function getOldPlatformToken() {
+  if (oldPlatformToken && oldTokenExpiry && Date.now() < oldTokenExpiry) {
+    return oldPlatformToken;
+  }
+  try {
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/v1/login`, {
+      username: 'admin',
+      password: 'admin123'
+    }, { timeout: 10000 });
+    if (response.data && response.data.data && response.data.data.token) {
+      oldPlatformToken = response.data.data.token;
+      oldTokenExpiry = Date.now() + 7200000;
+      return oldPlatformToken;
+    }
+    throw new Error('登录响应格式错误');
+  } catch (error) {
+    console.error('旧平台登录失败:', error.message);
+    throw error;
+  }
+}
+
+app.post('/api/iot-proxy/login', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    res.json({ code: 200, message: '旧平台登录成功', data: { token } });
+  } catch (error) {
+    res.status(500).json({ code: 500, message: '旧平台登录失败: ' + error.message });
+  }
+});
+
+app.post('/api/iot-proxy/devices', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/v1/device`, req.body || {}, {
+      headers: { 'token': token },
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('获取旧平台设备列表失败:', error.message);
+    if (error.response) {
+      res.json(error.response.data);
+    } else {
+      res.status(500).json({ code: 500, message: '获取设备列表失败: ' + error.message });
+    }
+  }
+});
+
+app.post('/api/iot-proxy/data', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/v1/data`, req.body, {
+      headers: { 'token': token },
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('获取旧平台实时数据失败:', error.message);
+    if (error.response) {
+      res.json(error.response.data);
+    } else {
+      res.status(500).json({ code: 500, message: '获取实时数据失败: ' + error.message });
+    }
+  }
+});
+
+app.post('/api/iot-proxy/op', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/v1/op`, req.body, {
+      headers: { 'token': token },
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('获取旧平台操作状态失败:', error.message);
+    if (error.response) {
+      res.json(error.response.data);
+    } else {
+      res.status(500).json({ code: 500, message: '获取操作状态失败: ' + error.message });
+    }
+  }
+});
+
+app.post('/api/iot-proxy/cmd', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/cmd`, null, {
+      headers: { 'token': token },
+      params: req.body || {},
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('发送控制命令失败:', error.message);
+    if (error.response) {
+      res.json(error.response.data);
+    } else {
+      res.status(500).json({ code: 500, message: '发送命令失败: ' + error.message });
+    }
+  }
+});
+
+app.post('/api/iot-proxy/history', async (req, res) => {
+  try {
+    const token = await getOldPlatformToken();
+    const response = await axios.post(`${OLD_PLATFORM_BASE}/api/app`, null, {
+      headers: { 'token': token },
+      params: req.body || {},
+      timeout: 15000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('获取旧平台历史数据失败:', error.message);
+    if (error.response) {
+      res.json(error.response.data);
+    } else {
+      res.status(500).json({ code: 500, message: '获取历史数据失败: ' + error.message });
+    }
+  }
 });
 
 app.use((err, req, res, next) => {

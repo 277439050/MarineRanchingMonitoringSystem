@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { ControlCommand, AlertRule } from '@/types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://localhost:666/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -99,6 +99,15 @@ export const iotApi = {
   getOp: (data: Record<string, unknown>) => api.post('/iot/op', data),
   sendCmd: (data: Record<string, unknown>) => api.post('/iot/cmd', data),
   getHistory: (data: Record<string, unknown>) => api.post('/iot/history', data),
+};
+
+export const oldPlatformApi = {
+  login: () => api.post('/iot-proxy/login'),
+  getDeviceList: (data?: Record<string, unknown>) => api.post('/iot-proxy/devices', data || {}),
+  getRealtimeData: (data: { did?: string; [key: string]: unknown }) => api.post('/iot-proxy/data', data),
+  getOpStatus: (data: { did?: string; [key: string]: unknown }) => api.post('/iot-proxy/op', data),
+  sendCommand: (params: Record<string, unknown>) => api.post('/iot-proxy/cmd', params),
+  getHistoryData: (params: { did?: string; [key: string]: unknown }) => api.post('/iot-proxy/history', params),
 };
 
 export default api;
